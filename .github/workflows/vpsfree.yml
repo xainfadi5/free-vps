@@ -1,23 +1,32 @@
-name: Free VPS
+name: Free VPS with ngrok
 
-on: [workflow_dispatch]
+on:
+  workflow_dispatch:
 
 jobs:
-  build:
+  vps:
     runs-on: ubuntu-latest
     steps:
-      - name: Start VPS
+      - name: Update and install SSH
         run: |
-          sudo apt update
-          sudo apt install -y openssh-server
+          sudo apt update && sudo apt upgrade -y
+          sudo apt install -y openssh-server unzip wget
           sudo service ssh start
-
           echo "root:123456" | sudo chpasswd
-
           sudo sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
           sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo service ssh restart
 
-          curl -s https://api.ipify.org
+      - name: Install ngrok
+        run: |
+          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip
+          unzip ngrok-v3-stable-linux-amd64.zip
+          chmod +x ngrok
 
-          sleep 21600
+      - name: Start ngrok TCP tunnel
+        run: |
+          ./ngrok tcp 22 --log=stdout &
+          sleep 10
+
+      - name: Show ngrok public address
+        run: curl --silent http://localhost:4040/api/tunnels | grep -o '"public_url":"tcp://[^"]*' | cut -d'"' -f4
